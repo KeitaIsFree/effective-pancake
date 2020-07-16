@@ -5,22 +5,20 @@ from PIL import Image
 import copy
 
 img1 = None
-img2 = None
 
 lbl_list_1 = []
 
 line_search_width = 64
 
 def load_image():
-    global img1, img2
-    if len(sys.argv)<3:
-        print('Wrong amount of arguments.\nUsage: ./labelling.py [first_image_path] [second_image_path]')
+    global img1
+    if len(sys.argv)<2:
+        print('Wrong amount of arguments.\nUsage: ./labelling.py [image_path]')
         exit()
     img1 = Image.open(sys.argv[1])
-    img2 = Image.open(sys.argv[2])
     
 def search_black():
-    global img1, img2, lbl_list_1 
+    global img1, lbl_list_1 
     lbl_list_1 = [ [0 for _ in range(img1.size[0])] for _ in range(img1.size[1]) ]
     lbl_img1 = Image.new('L', img1.size)
     max_lbl = 0
@@ -171,11 +169,11 @@ def search_lines():
             lines.append((a,b,edges[0][0]))
             
         p += 1
-    img_with_line = img1
+    img1_with_line = img1
     for line in lines:
         for i in range(line_search_width):
-            img_with_line.putpixel((line[2]+i, int((line[0]+1)*(line[2]+i)+line[1])), (255,0,0))
-    img_with_line.show()
+            img1_with_line.putpixel((line[2]+i, int((line[0]+1)*(line[2]+i)+line[1])), (255,0,0))
+    img1_with_line.show()
 
 def main():
     load_image()
