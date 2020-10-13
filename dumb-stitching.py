@@ -6,18 +6,11 @@ import time
 import math
 from PIL import Image
 
-min_diff = None
-min_i = None
-
-img = []
-
-lazyMode = True
 
 def smooth_func(rate):
     return math.sin((rate*2-1)*math.pi/2)/2+0.5
 
 def load_image():
-    global img, img_array, min_diff, min_i, lazyMode, image_to_merge
     if len(sys.argv) < 3:
         print('Wrong amount of arguments.')
         print('Usage: ./labelling.py [image_path_1]  [image_path_2]')
@@ -30,6 +23,7 @@ def load_image():
     #     print('Running in lazy mode; assuming overlap is less than two thirds of the width...')
     image_to_merge = len(sys.argv)-1
     k = 0
+    img = []
     while k < image_to_merge:
         img.append(Image.open(sys.argv[k+1]))
         #img_array.append(numpy.asarray(img[k].getdata()))
@@ -40,10 +34,9 @@ def load_image():
     # if len(sys.argv) == 5:
     #     min_diff = float(sys.argv[3])
     #     min_i = int(sys.argv[4])
-    return img
+    return image_to_merge, img
 
 def stitch_image(img_l, img_r):
-    global min_diff, min_i
     img_array_l = numpy.asarray(img_l.getdata())
     img_array_r = numpy.asarray(img_r.getdata())
     min_diff = None
@@ -56,21 +49,22 @@ def stitch_image(img_l, img_r):
         if i % 10 == 0:
             print('|', end='', flush=True)
         total_diff = 0
-        columns_calculated = 0
+        pixels_calculated = 0
         for x in range(max(0, img_l.size[0]-i-math.floor(img_r.size[0]/6)), img_l.size[0]-i):
             for y in range(img_l.size[1]):
-                total_diff += sum(numpy.absolute(numpy.subtract(img_array_l[y*img_l.size[0]+x+i], img_array_r[y*img_r.size[0]+x])))
-            columns_calculated += 1
-        avrg_diff = total_diff/columns_calculated
+                if numpy.sum(img_array_l[y*img_l.size[0]+x+i]) != 0 or numpy.sum(img_array_r[y*img_r.size[0]+x]) != 0:
+                    total_diff += sum(numpy.absolute(numpy.subtract(img_array_l[y*img_l.size[0]+x+i], img_array_r[y*img_r.size[0]+x])))
+                    pixels_calculated += 1
+        avrg_diff = total_diff/pixels_calculated
         if  min_diff == None or min_diff > avrg_diff:
             #print(str(min_diff)+' is bigger than '+str(avrg_diff))
             min_diff = avrg_diff
             min_i = i
     #print('Minimum diff was '+str(min_diff)+' at i = '+str(min_i))
     print('')
+    return min_diff, min_i
 
-def output_image(img_l, img_r):
-    global img, img_array
+def output_image(img_l, img_r, min_diff, min_i):
     img_array_l = numpy.asarray(img_l.getdata())
     img_array_r = numpy.asarray(img_r.getdata())
     output_size = [ img_r.size[0] + min_i, img_l.size[1] ]
@@ -90,7 +84,7 @@ def output_image(img_l, img_r):
                 img2_pixel = [ math.floor(n * rate) for n in img_array_r[y*img_r.size[0]+x-min_i] ]
                 output_array[y*output_size[0]+x] = tuple(numpy.add(img1_pixel, img2_pixel))
     output_img.putdata(output_array)
-    output_img.show()
+    #output_img.show()
     return output_img
     #img_array[j] = output_array
 
@@ -133,18 +127,25 @@ def main():
     image_to_merge = 2
     merges = 0
     j = None
-    img = load_image()
+    image_to_merge, img = load_image()
     while merges < image_to_merge-1:
         j = merges
         # if not len(sys.argv) == 5 :
-        for angle in range(1,2):
+        best_img = None
+        best_diff = None
+        for angle in range(10, 15):
             print('Attempting with theta = '+str(angle)+' degrees')
             angle *= math.pi / 180
-            skew_img_l = skew(angle, img[j])
+            skew_img_l = skew(angle, img[j]) if j == 0 else img[j]
             skew_img_r = skew(angle, img[j+1])
-            stitch_image(skew_img_l, skew_img_r)
-            new_img = output_image(skew_img_l, skew_img_r)
+            min_diff, min_i = stitch_image(skew_img_l, skew_img_r)
+            new_img = output_image(skew_img_l, skew_img_r, min_diff, min_i)
+            if best_diff==None or min_diff<best_diff:
+                best_img = new_img
+                best_diff = min_diff
+        img[j+1] = best_img
         merges += 1
+    img[merges].show()
 
 if __name__=='__main__':
     main()
