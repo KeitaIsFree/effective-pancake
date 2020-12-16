@@ -3,6 +3,7 @@
 from PIL import Image
 import sys
 import math
+import numpy
 
 img_list = []
 result = []
@@ -74,71 +75,76 @@ def load_image():
     else:
         result_img = Image.new('RGB', (img.size[0], img.size[1]))
 
-def apply_filter(kernel = selected_kernel, data_list = img_list):
-    global result, result_img
-    print('Applying filter with +'+str(kernel)+' to '+str(data_list[0:16]))
-    result = [ [ [0] for _ in range(len(data_list[0])) ] for _ in range(len(data_list)) ]
-    for y in range(len(data_list)):
-        for x in range(len(data_list[0])):
-            print('looking at x,y: '+str((x,y)))
+def apply_filter(img, kernel = selected_kernel):
+    #global result, result_img
+    #print('Applying filter with +'+str(kernel)+' to '+str(data_list[0:16]))
+    result = [ 0 for _ in range(img.size[0]*img.size[1])]
+    result_img = Image.new('RGB', (img.size[0], img.size[1]))
+    img_array = numpy.asarray(img.getdata())
+    print('='*math.floor(img.size[1]/10)+'|')
+    for y in range(img.size[1]):
+        if y % 10 == 0:
+            print('|', end='', flush=True)
+        for x in range(img.size[0]):
+            #print('looking at x,y: '+str((x,y)))
             diff = int(kernel[size][0]/2-0.5)
-            if diff <= x < len(data_list[0])-diff and diff <= y < len(data_list)-diff:
-                data_list_in_use = [ row[x-diff: x+diff+1] for row in data_list[y-diff: y+diff+1] ]
+            if diff <= x < img.size[0]-diff and diff <= y < img.size[1]-diff:
+                pixels_in_range = [ [ img_array[y*img.size[0]+x] for kx in range(x-diff, x+diff+1) ] for ky in range(y-diff, y+diff+1) ]
             else:
-                data_list_in_use = [ [ [1] for _ in range(kernel[size][0]) ] for _ in range(kernel[size][1]) ]
+                pixels_in_range = [ [ [1] for _ in range(kernel[size][0]) ] for _ in range(kernel[size][1]) ]
                 for yk in range(kernel[size][1]):
-                    if not 0 <= y+yk-diff < len(data_list):
-                        data_list_in_use[yk] = [ data_list[y][x] for _ in range(kernel[size][0]) ]
+                    if not 0 <= y+yk-diff < img.size[1]:
+                        pixels_in_range[yk] = [ img_array[ y*img.size[0]+x ] for _ in range(kernel[size][0]) ]
                     else:
                         for xk in range(kernel[size][0]):
-                            if 0 <= x+xk-diff < len(data_list[0]):
-                                data_list_in_use[yk][xk] = data_list[y+yk-diff][x+xk-diff]
+                            if 0 <= x+xk-diff < img.size[0]:
+                                pixels_in_range[yk][xk] = img_array[(y+yk-diff)*img.size[0]+(x+xk-diff)]
                             else:
-                                data_list_in_use[yk][xk] = data_list[y][x]
-            print('kernel is '+str(kernel))
+                                pixels_in_range[yk][xk] = img_array[y*img.size[0]+x]
+            #print('kernel is '+str(kernel))
             #if kernel[only_brightness]:
-            if True:
-                if not len(kernel[values]) == 1:  #if kernel has common kernel for x and y
-                    total = [0, 0]
-                    for yk in range(kernel[size][1]):
-                        for xk in range(kernel[size][0]):
-                            print('adding '+str(data_list_in_use[yk][xk])+' times '+str(kernel[values][0][yk][xk]))
-                            total[0] += sum(data_list_in_use[yk][xk])/3*kernel[values][0][yk][xk]
-                    for yk in range(kernel[size][1]):
-                        for xk in range(kernel[size][0]):
-                            print('adding '+str(data_list_in_use[yk][xk])+' times '+str(kernel[values][0][yk][xk]))
-                            total[1] += sum(data_list_in_use[yk][xk])/3*kernel[values][1][yk][xk]
+            if not len(kernel[values]) == 1:  #if kernel has common kernel for x and y
+                total = [0, 0]
+                for yk in range(kernel[size][1]):
+                    for xk in range(kernel[size][0]):
+                        #print('adding '+str(pixels_in_range[yk][xk])+' times '+str(kernel[values][0][yk][xk]))
+                        total[0] += sum(pixels_in_range[yk][xk])/3*kernel[values][0][yk][xk]
+                for yk in range(kernel[size][1]):
+                    for xk in range(kernel[size][0]):
+                        #print('adding '+str(pixels_in_range[yk][xk])+' times '+str(kernel[values][0][yk][xk]))
+                        total[1] += sum(pixels_in_range[yk][xk])/3*kernel[values][1][yk][xk]
                     #if kernel[adjust] != None:
                     #    total = total/kernel[adjust]
-                    value = math.sqrt(total[0]**2+total[1]**2)
-                    if not total[0] == 0:
-                        angle = math.atan(total[1]/total[0])
-                    elif total[1]==0:
-                        angle = math.atan(1)
-                    else:
-                        angle = math.atan(1000000)
-                    result[y][x] = {
-                        'value': value,
-                        'angle': angle,
-                        }
-                    result_img.putpixel((x,y), int(math.sqrt(total[0]**2+total[1]**2)))
+                value = math.sqrt(total[0]**2+total[1]**2)
+                if not total[0] == 0:
+                    angle = math.atan(total[1]/total[0])
+                elif total[1]==0:
+                    angle = math.atan(1)
                 else:
-                    total = [0, 0, 0]
-                    for yk in range(kernel[size][1]):
-                        for xk in range(kernel[size][0]):
-                            print('adding '+str(data_list_in_use[yk][xk])+' times '+str(kernel[values][0][yk][xk]))
-                            total[0] += data_list_in_use[yk][xk][0]*kernel[values][0][yk][xk]
-                            total[1] += data_list_in_use[yk][xk][1]*kernel[values][0][yk][xk]
-                            total[2] += data_list_in_use[yk][xk][2]*kernel[values][0][yk][xk]
-                    if kernel[adjust] != None:
-                        total[0] = int(total[0]/kernel[adjust])
-                        total[1] = int(total[1]/kernel[adjust])
-                        total[2] = int(total[2]/kernel[adjust])
-                    #result[y][x] = abs(total)
-                    print('putting '+ str((total[0], total[1], total[2]))+'at '+str((x,y)))
-                    result_img.putpixel((x,y), (total[0], total[1], total[2]))
-                    result[y][x] = (total[0], total[1], total[2])
-    return result
+                    angle = math.atan(1000000)
+                result[y][x] = {
+                    'value': value,
+                    'angle': angle,
+                }
+                result_img.putpixel((x,y), int(math.sqrt(total[0]**2+total[1]**2)))
+            else:
+                total = [0, 0, 0]
+                for yk in range(kernel[size][1]):
+                    for xk in range(kernel[size][0]):
+                        #print('adding '+str(pixels_in_range[yk][xk])+' times '+str(kernel[values][0][yk][xk]))
+                        total[0] += pixels_in_range[yk][xk][0]*kernel[values][0][yk][xk]
+                        total[1] += pixels_in_range[yk][xk][1]*kernel[values][0][yk][xk]
+                        total[2] += pixels_in_range[yk][xk][2]*kernel[values][0][yk][xk]
+                if kernel[adjust] != None:
+                    total[0] = int(total[0]/kernel[adjust])
+                    total[1] = int(total[1]/kernel[adjust])
+                    total[2] = int(total[2]/kernel[adjust])
+                #result[y][x] = abs(total)
+                #print('putting '+ str((total[0], total[1], total[2]))+'at '+str((x,y)))
+                result_img.putpixel((x,y), (total[0], total[1], total[2]))
+                result[y*img.size[0]+x] = (total[0], total[1], total[2])
+    print('')
+    return result, result_img
 
 def label():
     global result, img_list

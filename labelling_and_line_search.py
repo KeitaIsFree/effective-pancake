@@ -4,21 +4,16 @@ import sys
 from PIL import Image
 import copy
 
-img1 = None
-
-lbl_list_1 = []
-
 line_search_width = 64
 
 def load_image():
-    global img1
     if len(sys.argv)<2:
         print('Wrong amount of arguments.\nUsage: ./labelling.py [image_path]')
         exit()
     img1 = Image.open(sys.argv[1])
+    return img1
     
-def search_black():
-    global img1, lbl_list_1 
+def search_black(img1):
     lbl_list_1 = [ [0 for _ in range(img1.size[0])] for _ in range(img1.size[1]) ]
     lbl_img1 = Image.new('L', img1.size)
     max_lbl = 0
@@ -103,8 +98,8 @@ def search_black():
     print('Number of clusters :'+str(len(used_lbls)))
     lbl_img1.show()
 
-def search_lines():
-    global img1, lbl_list_1
+def search_lines(img1):
+    lbl_list_1 = [ [0 for _ in range(img1.size[0])] for _ in range(img1.size[1]) ]
     p = 2
     break_while = False
     lines = []
@@ -176,9 +171,9 @@ def search_lines():
     img1_with_line.show()
 
 def main():
-    load_image()
-    search_black()
-    search_lines()
+    img = load_image()
+    search_black(img)
+    search_lines(img)
 
 if __name__=='__main__':
     main()
