@@ -168,8 +168,8 @@ def main():
     # output.show()
 
     _, img = load_image()
-    #img[0], img[1] = exposure_adjust(img[0], img[1])
-    for tilt in [0.12, 0.16, 0.20, 0.24]:
+    img[0], img[1] = exposure_adjust(img[0], img[1])
+    for tilt in [0.14, 0.15, 0.16, 0.17, 0.18]:
         img_l = tilt_image(img[0], 1 + tilt)
         img_r = tilt_image(img[1], 1 - tilt)
         min_diff, min_i = stitch_image(img_l, img_r)

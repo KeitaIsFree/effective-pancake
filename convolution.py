@@ -78,7 +78,8 @@ def load_image():
 def apply_filter(img, kernel = selected_kernel):
     #global result, result_img
     #print('Applying filter with +'+str(kernel)+' to '+str(data_list[0:16]))
-    result = [ 0 for _ in range(img.size[0]*img.size[1])]
+    result = [ [ 0 for _ in range(img.size[0]) ] for _ in range(img.size[1]) ]
+    # result = [ 0 for _ in range(img.size[0]*img.size[1])]
     result_img = Image.new('RGB', (img.size[0], img.size[1]))
     img_array = numpy.asarray(img.getdata())
     print('='*math.floor(img.size[1]/10)+'|')

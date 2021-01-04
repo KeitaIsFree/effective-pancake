@@ -67,10 +67,15 @@ def exposure_adjust(img1, img2):
             exposure_time_2 = value      
         if ExifTags.TAGS.get(key) == 'FNumber':
             f_number_2 = value
+    print('Image taking conditions:\nImage 1 exposure: {} f_number: {}'.format(exposure_time_1, f_number_1))
+    print('Image 2 exposure: {} f_number: {}'.format(exposure_time_2, f_number_2))
     f_index_1 = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22, 32].index(int(f_number_1))
     f_index_2 = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22, 32].index(int(f_number_2))
     if exposure_time_1 / 2**f_index_1 > exposure_time_2 / 2**f_index_2:
         diff = (exposure_time_1 / 2**f_index_1) / (exposure_time_2 / 2**f_index_2)
+        ## REMOVE
+        # diff = 2.5
+        print('exposure diff: ', diff)
         new_img2 = Image.new('RGB', img2.size)
         for y in range(img2.size[1]):
             for x in range(img2.size[0]):
@@ -80,6 +85,9 @@ def exposure_adjust(img1, img2):
         img2 = new_img2
     else:
         diff = (exposure_time_2 / 2**f_index_2) / (exposure_time_1 / 2**f_index_1)
+        ## REMOVE 
+        # diff = 2.5
+        print('exposure diff: ', diff)
         new_img1 = Image.new('RGB', img1.size)
         for y in range(img1.size[1]):
             for x in range(img1.size[0]):
