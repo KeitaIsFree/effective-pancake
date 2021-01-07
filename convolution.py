@@ -143,7 +143,7 @@ def apply_filter(img, kernel = selected_kernel):
                 #result[y][x] = abs(total)
                 #print('putting '+ str((total[0], total[1], total[2]))+'at '+str((x,y)))
                 result_img.putpixel((x,y), (total[0], total[1], total[2]))
-                result[y*img.size[0]+x] = (total[0], total[1], total[2])
+                result[y][x] = (total[0], total[1], total[2])
     print('')
     return result, result_img
 

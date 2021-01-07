@@ -150,71 +150,41 @@ def skew(angle, img):
     
 def main():
 
-    # image_to_merge, img = load_image()
-    # img[0], img[1] = exposure_adjust(img[0], img[1])
-    # pixel_points_0, ll_points_0 = flat_to_angular(img[0])
-    # print()
-    # pixel_points_1,ll_points_1 = flat_to_angular(img[1])
-    # #merged = merge_ll_points(ll_points_0, ll_points_1, 0.64)
-    # #img_ll_merged = draw_lat_lon_img(merged, img[0], 0)
-    
-    # # img[0] = draw_lat_lon_img(ll_points_0, img[0], -math.atan2(170, 408))
-    # # img[1] = draw_lat_lon_img(ll_points_1, img[1], math.atan2(170, 408))
-    # img[0] = draw_y_lon_img(y_lon_points_0, img[0], -math.atan2(170, 408))
-    # img[1] = draw_y_lon_img(y_lon_points_1, img[1], math.atan2(170, 408))
-    
-    # min_diff, min_i = stitch_image(img[0], img[1])
-    # output = output_image(img[0], img[1], min_diff, min_i)
-    # output.show()
-
-    _, img = load_image()
+    image_to_merge, img = load_image()
+    img_exif0 = dict(img[0].getexif())
+    img_exif1 = dict(img[1].getexif())
     img[0], img[1] = exposure_adjust(img[0], img[1])
-    for tilt in [0.14, 0.15, 0.16, 0.17, 0.18]:
-        img_l = tilt_image(img[0], 1 + tilt)
-        img_r = tilt_image(img[1], 1 - tilt)
-        min_diff, min_i = stitch_image(img_l, img_r)
-        output = output_image(img_l, img_r, min_diff, min_i)
-        output.show()
+    # vh_0 = xy_img2vh_img(img[0], img_exif0)
+    # vh_1 = xy_img2vh_img(img[1], img_exif1)
+    # new_vh = merge_vh(vh_0, vh_1, math.atan(280/816))
+    # new_img = Image.new('RGB', (img[0].size[0], img[0].size[1]))
+    # draw_vh(new_vh, new_img, img_exif0)
+    # img[0] = draw_vh(vh_0, img[0], img_exif0, math.atan(120/816))
+    # img[1] = draw_vh(vh_1, img[1], img_exif1, -math.atan(120/816))
     
-    # #TODO: image_to_merge
-    # image_to_merge = 2
-    # merges = 0
-    # j = None
-    # image_to_merge, img = load_image()
-    # print('## Preparing images... ##')
-    # for k in range(image_to_merge):
-    #     print('Applying filter... ('+str(k+1)+'/'+str(image_to_merge)+')')
-    #     _, img[k] = apply_filter(img[k], GAUSSIAN_KERNEL)
-    #     img[k].show()
-    # while merges < image_to_merge-1:
-    #     print('## Stiching images ('+str(merges+1)+'/'+str(image_to_merge)+') ##')
-    #     j = merges
-    #     # if not len(sys.argv) == 5 :
-    #     best_img = None
-    #     best_diff = None
-    #     angle_range = range(10, 11)
-    #     ########################################################
-    #     #Only two images with longest lines being the same one
-    #     ########################################################
-    #     lines = []
-    #     #lines.append(search_lines(img[0], search_black(img[0])))
-    #     #lines.append(search_lines(img[1], search_black(img[1])))
-    #     #calculated_angle = math.atan(math.sqrt(4*(lines[0][0] + lines[1][0]) * img[0].size[0]/((lines[0][0]+lines[1][0])*img[0].size[0]/2+2*(lines[0][1]-lines[1][1]))))
-    #     for angle in range(5, 60, 5):
-    #         #print('## Stitching with theta = '+str(angle)+' degrees ('+str(angle_range.index(angle)+1)+'/'+str(len(angle_range))+') ##')
-    #         angle *= math.pi / 180
-    #         print('** Skewing image... (1/2) **')
-    #         skew_img_l = skew(angle, img[j]) if j == 0 else img[j]
-    #         print('** Skewing image... (2/2) **')
-    #         skew_img_r = skew(angle, img[j+1])
-    #         min_diff, min_i = stitch_image(skew_img_l, skew_img_r)
-    #         new_img = output_image(skew_img_l, skew_img_r, min_diff, min_i)
-    #         if best_diff==None or min_diff<best_diff:
-    #             best_img = new_img
-    #             best_diff = min_diff
-    #     img[j+1] = best_img
-    #     merges += 1
-    # img[merges].show()
+    pixel_points_0, ll_points_0 = flat_to_angular(img[0], img_exif0)
+    print()
+    pixel_points_1,ll_points_1 = flat_to_angular(img[1], img_exif1)
+
+    overall_min_i = 0
+    overall_min_diff = None
+    best_shift = 0
+    
+    for m in [250, 270, 290, 310, 330]:
+        shift = math.atan(m/816)
+        img[0] = draw_lat_lon_img(ll_points_0, img[0], img_exif0, -shift)
+        img[1] = draw_lat_lon_img(ll_points_1, img[1], img_exif1, shift)
+        min_diff, min_i = stitch_image(img[0], img[1])
+        print(min_diff, min_i)
+        if overall_min_i == 0 or min_diff < overall_min_diff:
+            overall_min_i = min_i
+            overall_min_diff = min_diff
+            best_shift = shift
+
+    img[0] = draw_lat_lon_img(ll_points_0, img[0], img_exif0, -best_shift)
+    img[1] = draw_lat_lon_img(ll_points_1, img[1], img_exif1, best_shift)
+    output = output_image(img[0], img[1], overall_min_diff, overall_min_i)
+    output.show()
 
 if __name__=='__main__':
     main()
