@@ -147,6 +147,12 @@ def skew(angle, img):
     print('')
     return output_img
 
+def stitch_crude_ll(ll0, ll1):
+    ll_img_0 = crude_draw_ll(ll0)
+    ll_img_1 = crude_draw_ll(ll1)
+    min_diff, min_i = stitch_image(ll_img_0, ll_img_1)
+    output = output_image(ll_img_0, ll_img_1, min_diff, min_i)
+    output.show()
     
 def main():
 
@@ -165,6 +171,8 @@ def main():
     pixel_points_0, ll_points_0 = flat_to_angular(img[0], img_exif0)
     print()
     pixel_points_1,ll_points_1 = flat_to_angular(img[1], img_exif1)
+
+    stitch_crude_ll(ll_points_0, ll_points_1)
 
     overall_min_i = 0
     overall_min_diff = None

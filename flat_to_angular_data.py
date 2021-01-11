@@ -68,110 +68,6 @@ def exposure_adjust(img1, img2):
     img2.show()
     return img1, img2
 
-def xy_img2vh_img(img, img_exif):
-    #img_exif = dict(img.getexif())
-    for key, value in img_exif.items():
-        if ExifTags.TAGS.get(key) == 'FocalLengthIn35mmFilm':
-            focal_length_35 = value
-    if not focal_length_35:
-        print('focal_length not found')
-    diag_pixels = math.sqrt(img.size[0]**2 + img.size[1]**2)
-    #fraction of one pixel on sensor to focal length
-    pixel_to_focal_length = 35 / diag_pixels / focal_length_35 
-    focal_len_in_pixels = diag_pixels*focal_length_35/35
-    vh_points = []
-    for y in range(img.size[1]):
-        for x in range(img.size[0]):
-            h = math.atan((x-img.size[0]/2)/focal_len_in_pixels)
-            v = math.atan((y-img.size[1]/2)/focal_len_in_pixels)
-            vh_points.append({
-                'pos': (v,h),
-                'value': img.getpixel((x,y))
-                });
-            # print('(x,y): ({},{}), (v,h): ({},{})'.format(x,y,v,h))
-            # test_xy_vh((x,y), (v,h), focal_len_in_pixels, img.size)
-            # test_xy_vh((50,50), (math.pi/4, math.pi/4), 25, (50, 50))
-    return vh_points
-
-def crude_draw_vh(vh):
-    new_img = Image.new('RGB', (2000, 2000))
-    for point in vh:
-        x = int(1000*point['pos'][0])
-        y = int(1000*point['pos'][1])
-        new_img.putpixel((x, y), point['value'])
-    new_img.show()
-
-# def crude_draw_vh(vh, focal_len_in_pixels):
-#     new_img = Image.new('RGB', (1000, 1000))
-#     for point in vh:
-#         theta = math.atan2(math.sin(point['pos'][0]), math.sin(point['pos'][1]))
-#         alpha = math.asin(math.sin(point['pos'][1]) / math.cos(theta))
-#         vhImgX = int(focal_len_in_pixels / math.cos(alpha) * math.sin(alpha) * math.cos(theta) + new_img.size[0]/2) 
-#         vhImgY = int(focal_len_in_pixels / math.cos(alpha) * math.sin(alpha) * math.sin(theta) + new_img.size[1]/2)
-#         new_img.putpixel((vhImgX, vhImgY), point['value'])
-#     new_img.show()
-
-def draw_vh(vh, img, img_exif, shift=0):
-    drawed_count = [ [ 0 for _ in range(img.size[0]) ] for _ in range(img.size[1])]
-    #img_exif = dict(img.getexif())
-    for key, value in img_exif.items():
-        if ExifTags.TAGS.get(key) == 'FocalLengthIn35mmFilm':
-            focal_length_35 = value
-    diag_pixels = math.sqrt(img.size[0]**2 + img.size[1]**2)
-    #fraction of one pixel on sensor to focal length
-    pixel_to_focal_length = 35 / diag_pixels / focal_length_35 
-    focal_len_in_pixels = diag_pixels*focal_length_35/35
-    new_img = Image.new('RGB', img.size)
-    middle_shift = focal_len_in_pixels * math.sin(shift)
-    for point in vh:
-        x = focal_len_in_pixels * math.sin(point['pos'][1]+shift) * math.cos(point['pos'][0]) + img.size[0]/2 - middle_shift
-        y = focal_len_in_pixels * math.sin(point['pos'][0]) * math.cos(point['pos'][1]+shift) + img.size[1]/2
-        x = int(x)
-        y = int(y)
-        if not (x >= 0 and x < img.size[0]):
-            continue
-        if not(y >= 0 and y < img.size[1]):
-            continue
-        if drawed_count[y][x] == 0:
-            new_img.putpixel((int(x), int(y)), point['value'])
-            drawed_count[y][x] += 1
-        else:
-            new_pixel = [ int((point['value'][i] + int(new_img.getpixel((x,y))[i]) * drawed_count[y][x]) / (drawed_count[y][x]+1)) for i in range(3) ]
-            new_img.putpixel((int(x), int(y)), tuple(new_pixel))
-            drawed_count[y][x] += 1
-    new_img.show()
-    return new_img
-
-def merge_vh(vh1, vh2, shift):
-    new_vh = []
-    for point in vh1:
-        new_vh.append({
-            'pos': (point['pos'][0], point['pos'][1]+shift),
-            'value': point['value']
-        });
-    for point in vh2:
-        new_vh.append({
-            'pos': (point['pos'][0], point['pos'][1]-shift),
-            'value': point['value']
-        });
-    return new_vh
-
-def test_xy_vh(xy, vh, f, imgsize):
-    x, y = xy
-    v, h = vh
-    if f*math.tan(v)+imgsize[1]/2==y:
-        print('V v')
-    else:
-        print('V ERROR')
-        print('Calculated y: ', f*math.tan(v)+imgsize[1]/2)
-        print('Actual y: ', y)
-    if f*math.tan(h)+imgsize[0]/2==x:
-        print('H v')
-    else:
-        print('H ERROR')
-        print('Calculated x: ', f*math.tan(h)+imgsize[0]/2)
-        print('Actual x: ', x)
-        
 def flat_to_angular(img, img_exif):
     # img_exif = dict(img.getexif())
     #focal length assuming a 35mm film
@@ -210,12 +106,13 @@ def flat_to_angular(img, img_exif):
     return pixel_points, lat_lon_points
 
 def crude_draw_ll(ll):
-    new_img = Image.new('RGB', (2000, 2000))
+    new_img = Image.new('RGB', (400, 400))
     for point in ll:
-        x = int(1000*point['lon'] + 1000)
-        y = int(1000*point['lat'] + 1000)
+        x = int(400*point['lon'] + 200)
+        y = int(400*point['lat'] + 200)
         new_img.putpixel((x, y), point['data'])
     new_img.show()
+    return new_img
 
 def merge_ll_points(ll_l, ll_r, shift):
     new_ll = []
@@ -291,7 +188,7 @@ def main():
     # crude_draw_vh(vh)
     # draw_vh(vh, img, img_exif)
     pixel_points, lat_lon_points = flat_to_angular(img, img_exif)
-    #crude_draw_ll(lat_lon_points)
+    crude_draw_ll(lat_lon_points)
     # draw_ang_img(pixel_points, img)
     draw_lat_lon_img(lat_lon_points, img, img_exif, math.pi/8)
 
