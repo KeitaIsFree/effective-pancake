@@ -71,7 +71,8 @@ def stitch_image(img_l, img_r):
                 if numpy.sum(img_array_l[y*img_l.size[0]+x+i]) != 0 and numpy.sum(img_array_r[y*img_r.size[0]+x]) != 0:
                     total_diff += sum(numpy.absolute(numpy.subtract(img_array_l[y*img_l.size[0]+x+i], img_array_r[y*img_r.size[0]+x])))
                     pixels_calculated += 1
-        if pixels_calculated < img_l.size[0]*2:
+        #if pixels_calculated < img_l.size[0]*2:
+        if pixels_calculated == 0:
             #print("Calculated pixels: {}Not enough pixels calculated".format(pixels_calculated))
             continue
         avrg_diff = total_diff/pixels_calculated
@@ -147,11 +148,12 @@ def skew(angle, img):
     print('')
     return output_img
 
-def stitch_crude_ll(ll0, ll1):
-    ll_img_0 = crude_draw_ll(ll0)
-    ll_img_1 = crude_draw_ll(ll1)
-    min_diff, min_i = stitch_image(ll_img_0, ll_img_1)
-    output = output_image(ll_img_0, ll_img_1, min_diff, min_i)
+def stitch_crude_vh(vh0, vh1):
+    shift = math.atan(270/816)
+    vh_img_0 = crude_draw_vh(vh0, -shift)
+    vh_img_1 = crude_draw_vh(vh1, shift)
+    min_diff, min_i = stitch_image(vh_img_0, vh_img_1)
+    output = output_image(vh_img_0, vh_img_1, min_diff, min_i)
     output.show()
     
 def main():
@@ -168,31 +170,28 @@ def main():
     # img[0] = draw_vh(vh_0, img[0], img_exif0, math.atan(120/816))
     # img[1] = draw_vh(vh_1, img[1], img_exif1, -math.atan(120/816))
     
-    pixel_points_0, ll_points_0 = flat_to_angular(img[0], img_exif0)
+    pixel_points_0, vh_points_0 = flat_to_angular(img[0], img_exif0)
     print()
-    pixel_points_1,ll_points_1 = flat_to_angular(img[1], img_exif1)
+    pixel_points_1,vh_points_1 = flat_to_angular(img[1], img_exif1)
 
-    stitch_crude_ll(ll_points_0, ll_points_1)
+    #stitch_crude_vh(vh_points_0, vh_points_1)
 
     overall_min_i = 0
     overall_min_diff = None
     best_shift = 0
     
-    for m in [250, 270, 290, 310, 330]:
-        shift = math.atan(m/816)
-        img[0] = draw_lat_lon_img(ll_points_0, img[0], img_exif0, -shift)
-        img[1] = draw_lat_lon_img(ll_points_1, img[1], img_exif1, shift)
-        min_diff, min_i = stitch_image(img[0], img[1])
-        print(min_diff, min_i)
-        if overall_min_i == 0 or min_diff < overall_min_diff:
-            overall_min_i = min_i
-            overall_min_diff = min_diff
-            best_shift = shift
-
-    img[0] = draw_lat_lon_img(ll_points_0, img[0], img_exif0, -best_shift)
-    img[1] = draw_lat_lon_img(ll_points_1, img[1], img_exif1, best_shift)
-    output = output_image(img[0], img[1], overall_min_diff, overall_min_i)
+    shift = math.atan(280/816)
+    img[0] = draw_ver_hor_img(vh_points_0, img[0], img_exif0, -shift)
+    img[1] = draw_ver_hor_img(vh_points_1, img[1], img_exif1, shift)
+    min_diff, min_i = stitch_image(img[0], img[1])
+    print(min_diff, min_i)
+    output = output_image(img[0], img[1], min_diff, min_i)
     output.show()
+    
+    # img[0] = draw_ver_hor_img(vh_points_0, img[0], img_exif0, -best_shift)
+    # img[1] = draw_ver_hor_img(vh_points_1, img[1], img_exif1, best_shift)
+    # output = output_image(img[0], img[1], overall_min_diff, overall_min_i)
+    # output.show()
 
 if __name__=='__main__':
     main()

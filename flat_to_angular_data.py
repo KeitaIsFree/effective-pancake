@@ -81,7 +81,7 @@ def flat_to_angular(img, img_exif):
     print('focal_len_in_pixels: {}'.format(focal_len_in_pixels))
     #print(pixel_to_focal_length*3264)
     pixel_points = []
-    lat_lon_points = []
+    ver_hor_points = []
     print('='*int(img.size[1]/50), end='')
     print('|')
     for y in range(img.size[1]):
@@ -97,30 +97,34 @@ def flat_to_angular(img, img_exif):
             #alpha = math.atan(pixel_to_focal_length*r)
             alpha = math.atan(r / focal_len_in_pixels)
             # checked #########################################
-            lat = math.asin(math.sin(alpha) * math.sin(theta))
-            lon = math.asin(math.sin(alpha) * math.cos(theta))
+            ver = math.asin(math.sin(alpha) * math.sin(theta))
+            hor = math.asin(math.sin(alpha) * math.cos(theta))
             ###################################################
-            lat_lon_points.append({'lat': lat, 'lon': lon, 'data': img.getpixel((x,y))})
+            ver_hor_points.append({'ver': ver, 'hor': hor, 'data': img.getpixel((x,y))})
+            
             pixel_points.append({'pos': (ang_r, theta), 'data': img.getpixel((x,y))})
-            #print('(x,y): ({},{}) (lat,lon): ({},{})'.format(x, y, lat, lon))
-    return pixel_points, lat_lon_points
+            #print('(x,y): ({},{}) (ver,hor): ({},{})'.format(x, y, ver, hor))
+    return pixel_points, ver_hor_points
 
-def crude_draw_ll(ll):
+def crude_draw_vh(vh, shift = 0):
     new_img = Image.new('RGB', (400, 400))
-    for point in ll:
-        x = int(400*point['lon'] + 200)
-        y = int(400*point['lat'] + 200)
-        new_img.putpixel((x, y), point['data'])
+    for point in vh:
+        adjusted_hor = point['hor'] + math.asin(math.cos(point['ver'])*math.sin(shift))
+        x = int(400*adjusted_hor + 200)
+        y = int(400*point['ver'] + 200)
+        if x > 0 and x < 400:
+            if y > 0 and y < 400:
+                new_img.putpixel((x, y), point['data'])
     new_img.show()
     return new_img
 
-def merge_ll_points(ll_l, ll_r, shift):
-    new_ll = []
-    for ll in ll_l:
-        new_ll.append({'lat': ll['lat'], 'lon': ll['lon']-shift, 'data': ll['data'] })
-    for ll in ll_r:
-        new_ll.append({'lat': ll['lat'], 'lon': ll['lon']+shift, 'data': ll['data'] })
-    return new_ll
+def merge_vh_points(vh_l, vh_r, shift):
+    new_vh = []
+    for vh in vh_l:
+        new_vh.append({'ver': vh['ver'], 'hor': vh['hor']-shift, 'data': vh['data'] })
+    for vh in vh_r:
+        new_vh.append({'ver': vh['ver'], 'hor': vh['hor']+shift, 'data': vh['data'] })
+    return new_vh
     
 def draw_ang_img(pixel_points, img):
     img_exif = dict(img.getexif())
@@ -144,40 +148,42 @@ def draw_ang_img(pixel_points, img):
     angImg.show()
     return angImg
     
-def draw_lat_lon_img(lat_lon_points, img, img_exif, shift = 0):    
+def draw_ver_hor_img(ver_hor_points, img, img_exif, shift = 0):    
     #img_exif = dict(img.getexif())
     for key, value in img_exif.items():
         if ExifTags.TAGS.get(key) == 'FocalLengthIn35mmFilm':
             focal_length_35 = value           
     diag_pixels = math.sqrt(img.size[0]**2 + img.size[1]**2)
     focal_len_in_pixels = diag_pixels*focal_length_35/35
-    llImgSize = (img.size[0], img.size[1])
-    llImg = Image.new('RGB', llImgSize)
-    ll_img_point_count = [ [ 0 for _ in range(llImgSize[0]) ] for _ in range(llImgSize[1]) ]
+    #vhImgSize = (img.size[0], img.size[1])
+    vhImgSize = (img.size[0], img.size[1])
+    vhImg = Image.new('RGB', vhImgSize)
+    vh_img_point_count = [ [ 0 for _ in range(vhImgSize[0]) ] for _ in range(vhImgSize[1]) ]
     middle_shift = focal_len_in_pixels * math.sin(shift)
-    for lat_lon in lat_lon_points:
-        llImgX = focal_len_in_pixels * math.tan(math.asin(math.sin(lat_lon['lon']+shift)/math.cos(lat_lon['lat']))) + llImgSize[0]/2 - middle_shift
-        llImgY = focal_len_in_pixels * math.tan(math.asin(math.sin(lat_lon['lat'])/math.cos(lat_lon['lon']+shift))) + llImgSize[1]/2
-        llImgX = int(llImgX)
-        llImgY = int(llImgY)
-        if llImgX <0 or llImgX >= llImgSize[0]:
+    for ver_hor in ver_hor_points:
+        adjusted_hor = ver_hor['hor'] + math.asin(math.cos(ver_hor['ver'])*math.sin(shift))
+        vhImgX = focal_len_in_pixels * math.tan(math.asin(math.sin(adjusted_hor)/math.cos(ver_hor['ver']))) + vhImgSize[0]/2 - middle_shift
+        vhImgY = focal_len_in_pixels * math.tan(math.asin(math.sin(ver_hor['ver'])/math.cos(adjusted_hor))) + vhImgSize[1]/2
+        vhImgX = int(vhImgX)
+        vhImgY = int(vhImgY)
+        if vhImgX <0 or vhImgX >= vhImgSize[0]:
             #print('OUT OF RANGE PIXEL')
             continue
-        if llImgY <0 or llImgY >= llImgSize[1]:
+        if vhImgY <0 or vhImgY >= vhImgSize[1]:
             #print('OUT OF RANGE PIXEL')
             continue
-        if ll_img_point_count[llImgY][llImgX]==0:
-            llImg.putpixel((llImgX, llImgY), lat_lon['data'])
-            ll_img_point_count[llImgY][llImgX] += 1
+        if vh_img_point_count[vhImgY][vhImgX]==0:
+            vhImg.putpixel((vhImgX, vhImgY), ver_hor['data'])
+            vh_img_point_count[vhImgY][vhImgX] += 1
         else:
-            old_pixel = llImg.getpixel((llImgX, llImgY))
-            point_count = ll_img_point_count[llImgY][llImgX]
-            new_pixel = numpy.add(numpy.multiply(old_pixel, (point_count, point_count, point_count)), lat_lon['data']) / (point_count + 1)
+            old_pixel = vhImg.getpixel((vhImgX, vhImgY))
+            point_count = vh_img_point_count[vhImgY][vhImgX]
+            new_pixel = numpy.add(numpy.multiply(old_pixel, (point_count, point_count, point_count)), ver_hor['data']) / (point_count + 1)
             new_pixel = tuple([ int(dat) for dat in new_pixel ])
-            llImg.putpixel((llImgX, llImgY), new_pixel)
-            ll_img_point_count[llImgY][llImgX] += 1
-    llImg.show()
-    return llImg
+            vhImg.putpixel((vhImgX, vhImgY), new_pixel)
+            vh_img_point_count[vhImgY][vhImgX] += 1
+    vhImg.show()
+    return vhImg
     
 def main():
 
@@ -187,10 +193,10 @@ def main():
     # vh = xy_img2vh_img(img, img_exif)
     # crude_draw_vh(vh)
     # draw_vh(vh, img, img_exif)
-    pixel_points, lat_lon_points = flat_to_angular(img, img_exif)
-    crude_draw_ll(lat_lon_points)
+    pixel_points, ver_hor_points = flat_to_angular(img, img_exif)
+    #crude_draw_vh(ver_hor_points, math.pi/8)
     # draw_ang_img(pixel_points, img)
-    draw_lat_lon_img(lat_lon_points, img, img_exif, math.pi/8)
+    draw_ver_hor_img(ver_hor_points, img, img_exif, math.pi/8)
 
 if __name__=='__main__':
     main()
