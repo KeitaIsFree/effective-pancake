@@ -1,5 +1,3 @@
 # effective-pancake
-Image merger from multiple images to panorama/AR ready image.
 
-
-trello board: https://trello.com/b/xEhtjsMp/effective-pancake
+使用方法：./stitch.py [Image_file_path_1]　[Image_file_path_2]
